@@ -241,6 +241,7 @@ import jdk.graal.compiler.lir.Variable;
 import jdk.graal.compiler.lir.amd64.AMD64AddressValue;
 import jdk.graal.compiler.lir.amd64.AMD64Binary;
 import jdk.graal.compiler.lir.amd64.AMD64Move;
+import jdk.graal.compiler.lir.amd64.vector.AVXByteCompress;
 import jdk.graal.compiler.lir.amd64.vector.AMD64VectorBinary;
 import jdk.graal.compiler.lir.amd64.vector.AMD64VectorBlend;
 import jdk.graal.compiler.lir.amd64.vector.AMD64VectorClearOp;
@@ -2076,6 +2077,24 @@ public class AMD64AVX512ArithmeticLIRGenerator extends AMD64VectorArithmeticLIRG
 
     @Override
     public Variable emitVectorCompress(LIRKind resultKind, Value source, Value mask) {
+        AMD64Kind kind = (AMD64Kind) resultKind.getPlatformKind();
+        AVXSize size = AVXKind.getRegisterSize(kind);
+        if (kind.getScalar() == AMD64Kind.BYTE &&
+                        !supports(AMD64.CPUFeature.AVX512_VBMI2) &&
+                        supports(AMD64.CPUFeature.AVX2) &&
+                        supports(AMD64.CPUFeature.POPCNT)) {
+            /*
+             * VPCOMPRESSB (native byte compress) requires AVX512_VBMI2. Without it, byte compress
+             * must be emulated with the AVX2 shuffle-based fallback.
+             */
+            Variable result = getLIRGen().newVariable(resultKind);
+            AMD64Kind maskKind = size == AVXSize.ZMM ? AMD64Kind.QWORD : AMD64Kind.DWORD;
+            Value scalarMask = emitMoveOpMaskToInteger(LIRKind.value(maskKind), mask, kind.getVectorLength());
+            getLIRGen().append(new AVXByteCompress.CompressBytesWithMaskOp(getLIRGen(), asAllocatable(result), asAllocatable(source), asAllocatable(scalarMask)));
+            return result;
+        }
+
+        GraalError.guarantee(supports(AMD64.CPUFeature.AVX512_VBMI2), "compress without fallback requires AVX512_VBMI2");
         Variable result = getLIRGen().newVariable(resultKind);
         getLIRGen().append(new AVX512CompressExpand.CompressOp(result, asAllocatable(source), asAllocatable(mask)));
         return result;
