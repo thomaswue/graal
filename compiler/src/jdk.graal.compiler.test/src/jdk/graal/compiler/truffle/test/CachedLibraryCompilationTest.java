@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,7 +54,7 @@ public class CachedLibraryCompilationTest extends PartialEvaluationTest {
     public void setup() {
         cleanup();
         context = Context.newBuilder().allowExperimentalOptions(true).option("engine.CompilationFailureAction", "Throw").option("engine.BackgroundCompilation", "false").option(
-                        "compiler.TreatPerformanceWarningsAsErrors", "all").build();
+                        "compiler.TreatPerformanceWarningsAsErrors", "all").option("compiler.InliningPolicy", "Default").build();
         context.enter();
     }
 
@@ -95,7 +95,7 @@ public class CachedLibraryCompilationTest extends PartialEvaluationTest {
                 return null;
             }
         });
-        Assert.assertEquals(3, graph.getNodes(MethodCallTargetNode.TYPE).count());
+        Assert.assertEquals(2, graph.getNodes(MethodCallTargetNode.TYPE).count());
     }
 
     abstract static class NoGuardNode extends Node {
@@ -177,7 +177,7 @@ public class CachedLibraryCompilationTest extends PartialEvaluationTest {
         };
 
         StructuredGraph graph = partialEval(testRoot);
-        Assert.assertEquals(4, graph.getNodes(MethodCallTargetNode.TYPE).count());
+        Assert.assertEquals(3, graph.getNodes(MethodCallTargetNode.TYPE).count());
     }
 
     abstract static class VarArgsLibraryNode extends Node {
